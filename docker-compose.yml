@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  db:
+  db_ficevi:
     container_name: db_${SLUG}
     image: mariadb:10.11
     restart: always
@@ -19,15 +19,15 @@ services:
       retries: 30
     networks: [app_net]
 
-  wp:
+  wp_ficevi:
     container_name: wp_${SLUG}
     image: wordpress:php8.2-apache
     restart: always
     depends_on:
-      db:
+      db_ficevi:
         condition: service_healthy
     environment:
-      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_HOST: db_ficevi:3306
       WORDPRESS_DB_USER: ${DB_USER}
       WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
       WORDPRESS_DB_NAME: ${DB_NAME}
@@ -41,13 +41,9 @@ services:
     networks: [app_net]
     labels:
       - "traefik.enable=true"
-
-      # Router único (HTTPS)
       - "traefik.http.routers.wp-${SLUG}.rule=Host(`${DOMAIN_ROOT}`) || Host(`www.${DOMAIN_ROOT}`)"
       - "traefik.http.routers.wp-${SLUG}.entrypoints=websecure"
       - "traefik.http.routers.wp-${SLUG}.tls.certresolver=letsencrypt"
-
-      # Fuerza un único service y puerto interno del contenedor WP (80)
       - "traefik.http.routers.wp-${SLUG}.service=wp-${SLUG}-svc"
       - "traefik.http.services.wp-${SLUG}-svc.loadbalancer.server.port=80"
 
