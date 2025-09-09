@@ -1,6 +1,5 @@
 version: "3.9"
-env_file:
-  - .env 
+
 services:
   db:
     container_name: db_${SLUG}
@@ -11,7 +10,6 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-    # bind mount al host (acepta variables)
     volumes:
       - /srv/wp/${SLUG}/db:/var/lib/mysql
     healthcheck:
@@ -36,16 +34,14 @@ services:
       WORDPRESS_CONFIG_EXTRA: |
         define('WP_HOME','https://${DOMAIN_ROOT}');
         define('WP_SITEURL','https://${DOMAIN_ROOT}');
-    # solo persistimos uploads / themes / plugins en el host
     volumes:
       - /srv/wp/${SLUG}/uploads:/var/www/html/wp-content/uploads
       - /srv/wp/${SLUG}/themes:/var/www/html/wp-content/themes
       - /srv/wp/${SLUG}/plugins:/var/www/html/wp-content/plugins
     networks: [app_net]
-    # Opcional: si NO usarás la pestaña Domains de Dokploy, puedes dejar estas labels:
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.wp-${SLUG}.rule=Host(`${DOMAIN_ROOT}`,`www.${DOMAIN_ROOT}`)"
+      - "traefik.http.routers.wp-${SLUG}.rule=Host(`${DOMAIN_ROOT}`) || Host(`www.${DOMAIN_ROOT}`)"
       - "traefik.http.routers.wp-${SLUG}.entrypoints=websecure"
       - "traefik.http.routers.wp-${SLUG}.tls.certresolver=letsencrypt"
 
