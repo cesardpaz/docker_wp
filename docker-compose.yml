@@ -1,0 +1,54 @@
+version: "3.9"
+env_file:
+  - .env 
+services:
+  db:
+    container_name: db_${SLUG}
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    # bind mount al host (acepta variables)
+    volumes:
+      - /srv/wp/${SLUG}/db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -p${DB_ROOT_PASSWORD} --silent || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [app_net]
+
+  wp:
+    container_name: wp_${SLUG}
+    image: wordpress:php8.2-apache
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_DB_USER: ${DB_USER}
+      WORDPRESS_DB_PASSWORD: ${DB_PASSWORD}
+      WORDPRESS_DB_NAME: ${DB_NAME}
+      WORDPRESS_CONFIG_EXTRA: |
+        define('WP_HOME','https://${DOMAIN_ROOT}');
+        define('WP_SITEURL','https://${DOMAIN_ROOT}');
+    # solo persistimos uploads / themes / plugins en el host
+    volumes:
+      - /srv/wp/${SLUG}/uploads:/var/www/html/wp-content/uploads
+      - /srv/wp/${SLUG}/themes:/var/www/html/wp-content/themes
+      - /srv/wp/${SLUG}/plugins:/var/www/html/wp-content/plugins
+    networks: [app_net]
+    # Opcional: si NO usarás la pestaña Domains de Dokploy, puedes dejar estas labels:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wp-${SLUG}.rule=Host(`${DOMAIN_ROOT}`,`www.${DOMAIN_ROOT}`)"
+      - "traefik.http.routers.wp-${SLUG}.entrypoints=websecure"
+      - "traefik.http.routers.wp-${SLUG}.tls.certresolver=letsencrypt"
+
+networks:
+  app_net:
+    driver: bridge
